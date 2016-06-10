@@ -45,7 +45,6 @@
     "karma-requirejs": "~1.0.0",
     "karma-script-launcher": "~1.0.0",
     "matchdep": "~1.0.1",
-    "phantomjs-prebuilt": "^2.1.7",
     "requirejs": "~2.2.0"
   }
 }

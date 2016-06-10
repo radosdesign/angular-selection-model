@@ -2,7 +2,7 @@
 /**
  * Default options for the selection model directive
  *
- * 
+ *
  *
  * @package selectionModel
  */
@@ -12,10 +12,10 @@ angular.module('selectionModel').provider('selectionModelOptions', [function() {
 
   var options = {
     selectedAttribute: 'selected',
+    trackBy: 'Id',
     selectedClass: 'selected',
     type: 'basic',
-    mode: 'single',
-    cleanupStrategy: 'none'
+    mode: 'single'
   };
 
   this.set = function(userOpts) {

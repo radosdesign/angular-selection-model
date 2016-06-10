@@ -1,4 +1,3 @@
-
 /**
  * Selection Model - a selection aware companion for ngRepeat
  *
@@ -22,10 +21,10 @@ angular.module('selectionModel').directive('selectionModel', [
          */
         var defaultOptions = selectionModelOptions.get()
           , defaultSelectedAttribute = defaultOptions.selectedAttribute
+          , defaultTrackBy = defaultOptions.trackBy
           , defaultSelectedClass = defaultOptions.selectedClass
           , defaultType = defaultOptions.type
-          , defaultMode = defaultOptions.mode
-          , defaultCleanupStrategy = defaultOptions.cleanupStrategy;
+          , defaultMode = defaultOptions.mode;
 
         /**
          * The selection model type
@@ -66,6 +65,13 @@ angular.module('selectionModel').directive('selectionModel', [
         var selectedAttribute = scope.$eval(attrs.selectionModelSelectedAttribute) || defaultSelectedAttribute;
 
         /**
+         * Track by attribute
+         *
+         * Use `track-by` to override the default attribute.
+         */
+        var trackBy = scope.$eval(attrs.trackBy) || defaultTrackBy;
+
+        /**
          * The selected class name
          *
          * Will be applied to dom items (e.g. `tr` or `li`) representing
@@ -73,16 +79,6 @@ angular.module('selectionModel').directive('selectionModel', [
          * default class name.
          */
         var selectedClass = scope.$eval(attrs.selectionModelSelectedClass) || defaultSelectedClass;
-
-        /**
-         * The cleanup strategy
-         *
-         * How to handle items that are removed from the current view. By
-         * default no action is taken, you may set this to `deselect` to force
-         * items to be deselected when they are filtered away, paged away, or
-         * otherwise no longer visible on the client.
-         */
-        var cleanupStrategy = scope.$eval(attrs.selectionModelCleanupStrategy) || defaultCleanupStrategy;
 
         /**
          * The change callback
@@ -152,8 +148,34 @@ angular.module('selectionModel').directive('selectionModel', [
           , smItem = scope.$eval(repeatParts[0])
           , hasTrackBy = repeatParts.length > 2;
 
+        /**
+         * Returns index of the item in the array or -1 if not found
+         * @param array
+         * @param trackByAttr
+         * @param item
+         * @returns {number}
+         */
+        var indexOfTrackBy = function(array, trackByAttr, item) {
+          for(var i = 0; i < array.length; i += 1) {
+            if(array[i][trackByAttr] === item[trackByAttr]) {
+              return i;
+            }
+          }
+          return -1;
+        };
+
+        /**
+         * Returns true if this item is in selectedItemsList, false otherwise
+         * @param item
+         */
+        var isSelected = function(item) {
+          var index = indexOfTrackBy(selectedItemsList, trackBy, item);
+          return index > -1;
+        };
+
         var updateDom = function() {
-          if(smItem[selectedAttribute]) {
+          var isSelectedResult = isSelected(smItem);
+          if(isSelectedResult) {
             element.addClass(selectedClass);
           } else {
             element.removeClass(selectedClass);
@@ -161,7 +183,7 @@ angular.module('selectionModel').directive('selectionModel', [
 
           if('checkbox' === smType) {
             var cb = element.find('input');
-            cb.prop('checked', smItem[selectedAttribute]);
+            cb.prop('checked', isSelectedResult);
           }
         };
 
@@ -173,6 +195,12 @@ angular.module('selectionModel').directive('selectionModel', [
         // filtered out
         var getAllItems = function() {
           return scope.$eval(repeatParts[1].split(/[|=]/)[0]);
+        };
+
+        var updateSelectedAttributeValue = function() {
+          angular.forEach(getAllVisibleItems(), function(item) {
+            item[selectedAttribute] = isSelected(item);
+          });
         };
 
         // Get us back to a "clean" state. Usually we'll want to skip
@@ -187,29 +215,31 @@ angular.module('selectionModel').directive('selectionModel', [
             , isRange = angular.isArray(except) && 2 === except.length
             , allItems = getAllItems()
             , numItemsFound = 0
-            , doDeselect = false
+            , doSelect = true
             , ixItem;
           if(useSelectedArray) {
             selectedItemsList.length = 0;
           }
           angular.forEach(allItems, function(item) {
             if(isRange) {
-              ixItem = except.indexOf(item);
+              ixItem = indexOfTrackBy(except, trackBy, item);
               if(ixItem > -1) {
                 numItemsFound++;
-                doDeselect = false;
+                doSelect = true;
                 except.splice(ixItem, 1);
               } else {
-                doDeselect = 1 !== numItemsFound;
+                doSelect = 1 === numItemsFound;
               }
             } else {
-              doDeselect = item !== except;
+              doSelect = item[trackBy] === except[trackBy];
             }
-            if(doDeselect) {
-              item[selectedAttribute] = false;
-            } else {
-              if(useSelectedArray && item[selectedAttribute]) {
-                selectedItemsList.push(item);
+            if(doSelect) {
+              selectedItemsList.push(item);
+            }
+            else {
+              var index = indexOfTrackBy(selectedItemsList, trackBy, item);
+              if(index > -1) {
+                selectedItemsList.splice(index, 1);
               }
             }
           });
@@ -223,11 +253,12 @@ angular.module('selectionModel').directive('selectionModel', [
           lastItem = lastItem || smItem;
 
           angular.forEach(getAllVisibleItems(), function(item) {
-            foundThisItem = foundThisItem || item === smItem;
-            foundLastItem = foundLastItem || item === lastItem;
+            foundThisItem = foundThisItem || item[trackBy] === smItem[trackBy];
+            foundLastItem = foundLastItem || item[trackBy] === lastItem[trackBy];
             var inRange = (foundLastItem + foundThisItem) === 1;
-            if(inRange || item === smItem || item === lastItem) {
-              item[selectedAttribute] = true;
+            if(inRange || item[trackBy] === smItem[trackBy] || item[trackBy] === lastItem[trackBy]) {
+              // Put this item into selectedItems
+              selectedItemsList.push(item);
             }
           });
         };
@@ -322,45 +353,37 @@ angular.module('selectionModel').directive('selectionModel', [
 
           // Use ctrl/shift without multi select to true toggle a row
           if(isCtrlKeyDown || isShiftKeyDown || isCheckboxClick) {
-            var isSelected = !smItem[selectedAttribute];
+            var isSelectedResult = !isSelected(smItem);
             if(!isMultiMode) {
               deselectAllItemsExcept(smItem);
             }
-            smItem[selectedAttribute] = isSelected;
-            if(smItem[selectedAttribute]) {
+            if(isSelectedResult) {
               selectionStack.push(clickStackId, smItem);
+              selectedItemsList.push(smItem);
             }
+            else {
+              // Remove from list
+              var index = indexOfTrackBy(selectedItemsList, trackBy, smItem);
+              if(index > -1) {
+                selectedItemsList.splice(index, 1);
+              }
+            }
+            updateDom();
+            updateSelectedAttributeValue();
+
             scope.$apply();
             return;
           }
 
           // Otherwise the clicked on row becomes the only selected item
+          console.log('XXX: handleClick: item: ' + JSON.stringify(smItem));
+
           deselectAllItemsExcept(smItem);
           scope.$apply();
 
-          smItem[selectedAttribute] = true;
           selectionStack.push(clickStackId, smItem);
+          selectedItemsList.push(smItem);
           scope.$apply();
-        };
-
-        /**
-         * Routine to keep the list of selected items up to date
-         *
-         * Adds/removes this item from `selectionModelSelectedItems`.
-         */
-        var updateSelectedItemsList = function() {
-          if(angular.isArray(selectedItemsList)) {
-            var ixSmItem = selectedItemsList.indexOf(smItem);
-            if(smItem[selectedAttribute]) {
-              if(-1 === ixSmItem) {
-                selectedItemsList.push(smItem);
-              }
-            } else {
-              if(-1 < ixSmItem) {
-                selectedItemsList.splice(ixSmItem, 1);
-              }
-            }
-          }
         };
 
         element.on('click', handleClick);
@@ -373,30 +396,26 @@ angular.module('selectionModel').directive('selectionModel', [
 
         // We might be coming in with a selection
         updateDom();
-        updateSelectedItemsList();
-
-        // If we were given a cleanup strategy then setup a `'$destroy'`
-        // listener on the scope.
-        if('deselect' === cleanupStrategy) {
-          scope.$on('$destroy', function() {
-            var oldSelectedStatus = smItem[selectedAttribute];
-            smItem[selectedAttribute] = false;
-            updateSelectedItemsList();
-            if(smOnChange && oldSelectedStatus) {
-              scope.$eval(smOnChange);
-            }
-          });
-        }
+        updateSelectedAttributeValue();
 
         scope.$watch(repeatParts[0] + '.' + selectedAttribute, function(newVal, oldVal) {
           // Be mindful of programmatic changes to selected state
           if(newVal !== oldVal) {
             if(!isMultiMode && newVal && !oldVal) {
               deselectAllItemsExcept(smItem);
-              smItem[selectedAttribute] = true;
             }
+
+            if(newVal) {
+              selectedItemsList.push(smItem);
+            }
+            else {
+              var index = indexOfTrackBy(selectedItemsList, trackBy, smItem);
+              if(index > -1) {
+                selectedItemsList.splice(index, 1);
+              }
+            }
+
             updateDom();
-            updateSelectedItemsList();
 
             if(smOnChange) {
               scope.$eval(smOnChange);

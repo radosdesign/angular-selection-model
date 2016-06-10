@@ -1,5 +1,6 @@
 {
   "predef": ["angular"],
+  "devel": true,
   "browser": true,
   "bitwise": true,
   "camelcase": false,

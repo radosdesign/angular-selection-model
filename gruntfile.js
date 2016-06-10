@@ -23,9 +23,13 @@ module.exports = function(grunt) {
 
     concat: {
       options: {separator: '\n'},
+      // dist: {
+      //   src: ['src/scripts/module.js', 'src/scripts/**/*.js'],
+      //   dest: 'dist/selection-model.js'
+      // }
       dist: {
         src: ['src/scripts/module.js', 'src/scripts/**/*.js'],
-        dest: 'dist/selection-model.js'
+        dest: '/Users/MBP/Work/boldstreams/boldstreams-admin/app/libs/selection-model/selection-model.js'
       }
     },
 
@@ -115,8 +119,8 @@ module.exports = function(grunt) {
 
   grunt.registerTask('default', [
     'clean',
-    'test',
-    'build'
+    'build',
+      'watch'
   ]);
 
 };
