@@ -203,6 +203,13 @@ angular.module('selectionModel').directive('selectionModel', [
           });
         };
 
+        var selectItem = function(item) {
+          var index = indexOfTrackBy(selectedItemsList, trackBy, item);
+          if(index === -1) {
+            selectedItemsList.push(item);
+          }
+        };
+
         // Get us back to a "clean" state. Usually we'll want to skip
         // deselection for items that are about to be selected again to avoid
         // firing the `selection-mode-on-change` handler extra times.
@@ -234,7 +241,7 @@ angular.module('selectionModel').directive('selectionModel', [
               doSelect = item[trackBy] === except[trackBy];
             }
             if(doSelect) {
-              selectedItemsList.push(item);
+              selectItem(item);
             }
             else {
               var index = indexOfTrackBy(selectedItemsList, trackBy, item);
@@ -258,7 +265,7 @@ angular.module('selectionModel').directive('selectionModel', [
             var inRange = (foundLastItem + foundThisItem) === 1;
             if(inRange || item[trackBy] === smItem[trackBy] || item[trackBy] === lastItem[trackBy]) {
               // Put this item into selectedItems
-              selectedItemsList.push(item);
+              selectItem(item);
             }
           });
         };
@@ -297,6 +304,8 @@ angular.module('selectionModel').directive('selectionModel', [
           if(event.selectionModelIgnore || (event.originalEvent && event.originalEvent.selectionModelIgnore)) {
             return;
           }
+
+          console.log('XXX: event.selectionModelClickHandled = ' + event.selectionModelClickHandled);
 
           // Never handle a single click twice.
           if(event.selectionModelClickHandled || (event.originalEvent && event.originalEvent.selectionModelClickHandled)) {
@@ -359,7 +368,7 @@ angular.module('selectionModel').directive('selectionModel', [
             }
             if(isSelectedResult) {
               selectionStack.push(clickStackId, smItem);
-              selectedItemsList.push(smItem);
+              selectItem(smItem);
             }
             else {
               // Remove from list
@@ -382,7 +391,7 @@ angular.module('selectionModel').directive('selectionModel', [
           scope.$apply();
 
           selectionStack.push(clickStackId, smItem);
-          selectedItemsList.push(smItem);
+          selectItem(smItem);
           scope.$apply();
         };
 
@@ -400,24 +409,26 @@ angular.module('selectionModel').directive('selectionModel', [
 
         scope.$watch(repeatParts[0] + '.' + selectedAttribute, function(newVal, oldVal) {
           // Be mindful of programmatic changes to selected state
-          if(newVal !== oldVal) {
-            if(!isMultiMode && newVal && !oldVal) {
+          if (newVal !== oldVal) {
+            if (!isMultiMode && newVal && !oldVal) {
               deselectAllItemsExcept(smItem);
             }
 
-            if(newVal) {
-              selectedItemsList.push(smItem);
+            if (newVal) {
+              console.log('XXX: Adding item to selectedItems because selectedAttr was modified');
+              selectItem(smItem);
             }
             else {
               var index = indexOfTrackBy(selectedItemsList, trackBy, smItem);
-              if(index > -1) {
+              if (index > -1) {
+                console.log('XXX: Removing item from selectedItems because selectedAttr was modified');
                 selectedItemsList.splice(index, 1);
               }
             }
 
             updateDom();
 
-            if(smOnChange) {
+            if (smOnChange) {
               scope.$eval(smOnChange);
             }
           }
