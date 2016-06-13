@@ -72,6 +72,13 @@ angular.module('selectionModel').directive('selectionModel', [
         var trackBy = scope.$eval(attrs.trackBy) || defaultTrackBy;
 
         /**
+         * 'Deselect All' broadcast
+         *
+         * Use `deselect-all-broadcast` attribute.
+         */
+        var deselectAllBroadcast = attrs.deselectAllBroadcast;
+
+        /**
          * The selected class name
          *
          * Will be applied to dom items (e.g. `tr` or `li`) representing
@@ -238,7 +245,7 @@ angular.module('selectionModel').directive('selectionModel', [
                 doSelect = 1 === numItemsFound;
               }
             } else {
-              doSelect = item[trackBy] === except[trackBy];
+              doSelect = (except) && (item[trackBy] === except[trackBy]);
             }
             if(doSelect) {
               selectItem(item);
@@ -304,8 +311,6 @@ angular.module('selectionModel').directive('selectionModel', [
           if(event.selectionModelIgnore || (event.originalEvent && event.originalEvent.selectionModelIgnore)) {
             return;
           }
-
-          console.log('XXX: event.selectionModelClickHandled = ' + event.selectionModelClickHandled);
 
           // Never handle a single click twice.
           if(event.selectionModelClickHandled || (event.originalEvent && event.originalEvent.selectionModelClickHandled)) {
@@ -385,8 +390,6 @@ angular.module('selectionModel').directive('selectionModel', [
           }
 
           // Otherwise the clicked on row becomes the only selected item
-          console.log('XXX: handleClick: item: ' + JSON.stringify(smItem));
-
           deselectAllItemsExcept(smItem);
           scope.$apply();
 
@@ -407,6 +410,7 @@ angular.module('selectionModel').directive('selectionModel', [
         updateDom();
         updateSelectedAttributeValue();
 
+        //
         scope.$watch(repeatParts[0] + '.' + selectedAttribute, function(newVal, oldVal) {
           // Be mindful of programmatic changes to selected state
           if (newVal !== oldVal) {
@@ -415,13 +419,11 @@ angular.module('selectionModel').directive('selectionModel', [
             }
 
             if (newVal) {
-              console.log('XXX: Adding item to selectedItems because selectedAttr was modified');
               selectItem(smItem);
             }
             else {
               var index = indexOfTrackBy(selectedItemsList, trackBy, smItem);
               if (index > -1) {
-                console.log('XXX: Removing item from selectedItems because selectedAttr was modified');
                 selectedItemsList.splice(index, 1);
               }
             }
@@ -433,6 +435,15 @@ angular.module('selectionModel').directive('selectionModel', [
             }
           }
         });
+
+        //
+        if(deselectAllBroadcast) {
+          scope.$on(deselectAllBroadcast, function () {
+            // Deselect All items
+            deselectAllItemsExcept();
+            updateSelectedAttributeValue();
+          });
+        }
 
         // If we're using track-by with ngRepeat it's possible the item
         // reference will change without this directive getting re-linked.

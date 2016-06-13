@@ -1,8 +1,26 @@
 # Angular Selection Model
 
-[![Build Status](https://travis-ci.org/jtrussell/angular-selection-model.svg?branch=master)](https://travis-ci.org/jtrussell/angular-selection-model)
-
 > Angular directive for managing selections in tables and lists
+
+## This is modified version of Angular Selection Model
+This is modified version of Angular Selection Model - originally to keep the information about which items are selected
+the `'selected'` attribute on items of ngRepeat array was used. In this modified version `'selected'` attribute still exists
+but is no longer used as main storage of this information. Now the main storage is the `'selectedItems'` array which is 
+independent of the ngRepeat array - therefore also items which are not currently loaded by ngRepeat can still remain
+selected.
+New attribute: `'deselect-all-broadcast'`: This attribute should contain the broadcast event name. When this event is
+broadcasted, all items will be deselected. 
+Example:
+```html
+<ul>
+  <li ng-repeat="item in fancy.stuff" selection-model deselect-all-broadcast="deselectAllStuff">
+    {{$index+1}}: {{item.label}}
+  </li>
+</ul>
+```
+
+Then you can deselect all items by broadcasting 'deselectAllStuff' event
+
 
 ## Huh? What about ngGrid, ngTable, or ...
 
